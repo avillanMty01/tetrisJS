@@ -28,10 +28,10 @@ document.addEventListener('DOMContentLoaded', () => {
   ]
   // this is different from Ania's, just swapped
   const zTetromino = [
-    [width + 1, width + 2, width * 2, width * 2 + 1],
     [0, width, width + 1, width * 2 + 1],
     [width + 1, width + 2, width * 2, width * 2 + 1],
-    [0, width, width + 1, width * 2 + 1]
+    [0, width, width + 1, width * 2 + 1],
+    [width + 1, width + 2, width * 2, width * 2 + 1]
   ]
   const tTetromino = [
     [1, width, width + 1, width + 2],
@@ -82,7 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // timerId = setInterval(moveDown, 1000)
 
   // assign functions to keyCodes
-  function control(e) {
+  function control (e) {
     if (e.keyCode === 37) {
       moveLeft()
     } else if (e.keyCode === 38) {
@@ -90,17 +90,19 @@ document.addEventListener('DOMContentLoaded', () => {
     } else if (e.keyCode === 39) {
       moveRight()
     } else if (e.keyCode === 40) {
-       moveDown()
+      moveDown()
     }
   }
   document.addEventListener('keyup', control)
 
   // move down function
-  function moveDown() {
-    undraw()
-    currentPosition += width
-    draw()
-    freeze()
+  function moveDown () {
+    if (timerId) {
+      undraw()
+      currentPosition += width
+      draw()
+      freeze()
+    }
   }
 
   // freeze function
@@ -120,43 +122,66 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // move the tetromino left, unless is at the edge or there is a blockage
-  function moveLeft() {
-    undraw()
-    const isAtLeftEdge = current.some(index => (currentPosition + index ) % width === 0)
-
-    if (!isAtLeftEdge) currentPosition -=1
-
-    if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) {
-      currentPosition +=1
+  function moveLeft () {
+    if (timerId) {
+      undraw()
+      const isAtLeftEdge = current.some(index => (currentPosition + index) % width === 0)
+      if (!isAtLeftEdge) currentPosition -= 1
+      if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) {
+        currentPosition += 1
+      }
+      draw()
     }
-
-    draw()
   }
 
   // move the tetromino right, unless is at the edge or there is a blockage
-  function moveRight() {
-    undraw()
-    const isAtRightEdge = current.some(index => (currentPosition + index) % width === width - 1)
-
-    if (!isAtRightEdge) currentPosition +=1
-
-    if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) {
-      currentPosition -=1
+  function moveRight () {
+    if (timerId) {
+      undraw()
+      const isAtRightEdge = current.some(index => (currentPosition + index) % width === width - 1)
+      if (!isAtRightEdge) currentPosition += 1
+      if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) {
+        currentPosition -= 1
+      }
+      draw()
     }
-
-    draw()
   }
 
-  // rotate the current Tetromino
-  function rotate() {
-    undraw()
-    // move to next rotation, if the current gets to 4 then go back to 0
-    currentRotation++
-    if (currentRotation === current.length) {
-      currentRotation = 0
+  // fix bug 001:
+  function isAtRight () {
+    return current.some(index => (currentPosition + index + 1) % width === 0)
+  }
+  function isAtLeft () {
+    return current.some(index => (currentPosition + index) % width === 0)
+  }
+  function checkRotatedPosition (P) {
+    P = P || currentPosition // get current position
+    if ((P + 1) % width < 4) { // add 1 because the position index can be 1 less than where the piece is (with how they are indexed)
+      if (isAtRight()) { // use actual position to check if it's flipped over to the right side
+        currentPosition += 1 // if so, add 1 to wrap it back around
+        checkRotatedPosition(P) // check again. Pass position from start, since long block might need to move more
+      }
+    } else if (P % width > 5) {
+      if (isAtLeft()) {
+        currentPosition -= 1
+        checkRotatedPosition(P)
+      }
     }
-    current = theTetrominoes[random][currentRotation]
-    draw()
+  }
+  // rotate the current Tetromino
+  function rotate () {
+    if (timerId) {
+      undraw()
+      // move to next rotation, if the current gets to 4 then go back to 0
+      currentRotation++
+      if (currentRotation === current.length) {
+        currentRotation = 0
+      }
+      current = theTetrominoes[random][currentRotation]
+      // fix bug 001: rotation at the edges of grid
+      checkRotatedPosition()
+      draw()
+    }
   }
 
   // show up-next tetromino in mini-grid display
@@ -200,11 +225,11 @@ document.addEventListener('DOMContentLoaded', () => {
   })
 
   // add score
-  function addScore() {
+  function addScore () {
     for (let i = 0; i < 199; i += width) {
       const row = [i, i + 1, i + 2, i + 3, i + 4, i + 5, i + 6, i + 7, i + 8, i + 9]
       if (row.every(index => squares[index].classList.contains('taken'))) {
-        score +=10
+        score += 10
         scoreDisplay.innerHTML = score
         row.forEach(index => {
           squares[index].classList.remove('taken')
@@ -219,10 +244,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Game over handling
-  function gameOver() {
+  function gameOver () {
     if (current.some(index => squares[currentPosition + index].classList.contains('taken'))) {
       scoreDisplay.innerHTML = score + ' ::: Game Over :::'
-      clearInterval(timerId)  // stop game
+      clearInterval(timerId) // stop game
+      timerId = null
     }
   }
 }) // END script
